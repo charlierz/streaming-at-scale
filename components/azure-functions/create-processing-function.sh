@@ -18,6 +18,7 @@ fi
 
 az functionapp plan create -g $RESOURCE_GROUP -n $PLAN_NAME \
     --$workers_argname $PROC_FUNCTION_WORKERS --sku $PROC_FUNCTION_SKU --location $LOCATION \
+    --is-linux true \
     -o tsv >> log.txt
 
 echo 'creating function app'
@@ -25,6 +26,8 @@ echo ". name: $PROC_FUNCTION_APP_NAME"
 az functionapp create -g $RESOURCE_GROUP -n $PROC_FUNCTION_APP_NAME \
     --plan $PLAN_NAME \
     --storage-account $AZURE_STORAGE_ACCOUNT \
+    --runtime dotnet \
+    --runtime-version 2 \
     -o tsv >> log.txt
 
 echo 'generating build path'

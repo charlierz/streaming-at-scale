@@ -16,7 +16,7 @@ export PREFIX=''
 export LOCATION="eastus"
 export TESTTYPE="1"
 export PROC_FUNCTION="Test0"
-export STEPS="CIDPTM"
+export STEPS="CIDPT"
 export GENERATOR_MODE="eventhubs"
 
 usage() { 
@@ -89,12 +89,12 @@ fi
 
 # 1000 messages/sec
 if [ "$TESTTYPE" == "1" ]; then
-    export EVENTHUB_PARTITIONS=2
-    export EVENTHUB_CAPACITY=2
+    export EVENTHUB_PARTITIONS=4
+    export EVENTHUB_CAPACITY=4
     export PROC_FUNCTION_SKU=P2v2
-    export PROC_FUNCTION_WORKERS=2
+    export PROC_FUNCTION_WORKERS=1
     export COSMOSDB_RU=20000
-    export SIMULATOR_INSTANCES=1
+    export SIMULATOR_INSTANCES=2
 fi
 
 # last checks and variables setup

@@ -34,9 +34,11 @@ namespace StreamingProcessor
                     string message = Encoding.UTF8.GetString(data.Body.Array);
 
                     var document = JObject.Parse(message);
-                    document["id"] = document["eventId"];
-                    document["enqueuedAt"] = data.SystemProperties.EnqueuedTimeUtc;
-                    document["processedAt"] = DateTime.UtcNow;
+                    document["id"] = document["eid"];
+                    document["eat"] = data.SystemProperties.EnqueuedTimeUtc;
+                    document["pat"] = DateTime.UtcNow;
+                    // document.Remove("cv");
+                    // document.Remove("ct");
 
                     tasks.Add(cosmosMessage.AddAsync(document));
                 }

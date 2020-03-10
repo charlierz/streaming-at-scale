@@ -11,7 +11,7 @@ from pyspark.sql.types import StringType
 executors = int(os.environ.get('EXECUTORS') or 1)
 # rowsPerSecond = int(os.environ.get('EVENTS_PER_SECOND') or 1000)
 # numberOfDevices = int(os.environ.get('NUMBER_OF_DEVICES') or 1000)
-rowsPerSecond = 500
+rowsPerSecond = 200
 numberOfDevices = rowsPerSecond
 temperatureDataCount = int(os.environ.get("TEMPERATURE_DATA_COUNT") or 66)
 cellVoltageDataCount = int(os.environ.get("CELL_VOLTAGE_DATA_COUNT") or 80)
