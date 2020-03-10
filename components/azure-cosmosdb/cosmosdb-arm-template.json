@@ -75,7 +75,7 @@
           "id": "[parameters('containerName')]",
           "partitionKey": {
             "paths": [
-              "/deviceId"
+              "/dev"
             ],
             "kind": "Hash"
           },
@@ -84,7 +84,7 @@
             "automatic": true,
             "includedPaths": [
               {
-                "path": "/type/?",
+                "path": "/mod/?",
                 "indexes": [
                   {
                     "kind": "Range",
@@ -94,7 +94,7 @@
                 ]
               },
               {
-                "path": "/deviceId/?",
+                "path": "/dev/?",
                 "indexes": [
                   {
                     "kind": "Range",
@@ -104,7 +104,7 @@
                 ]
               },
               {
-                "path": "/createdAt/?",
+                "path": "/ts/?",
                 "indexes": [
                   {
                     "kind": "Range",
@@ -124,7 +124,7 @@
             "uniqueKeys": [
               {
                 "paths": [
-                  "/eventId"
+                  "/eid"
                 ]
               }
             ]

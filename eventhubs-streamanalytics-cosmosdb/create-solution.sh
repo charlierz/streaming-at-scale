@@ -13,9 +13,9 @@ on_error() {
 trap 'on_error $LINENO' ERR
 
 export PREFIX=''
-export LOCATION="eastus"
+export LOCATION="eastus2"
 export TESTTYPE="1"
-export STEPS="CIDPTM"
+export STEPS="PT"
 
 usage() { 
     echo "Usage: $0 -d <deployment-name> [-s <steps>] [-t <test-type>] [-l <location>]"
@@ -78,13 +78,23 @@ if [ "$TESTTYPE" == "5" ]; then
 fi
 
 # 1000 messages/sec
-if [ "$TESTTYPE" == "1" ]; then
+if [ "$TESTTYPE" == "2" ]; then
     export EVENTHUB_PARTITIONS=2
     export EVENTHUB_CAPACITY=2
     export PROC_JOB_NAME=streamingjob
     export PROC_STREAMING_UNITS=6 # must be 1, 3, 6 or a multiple or 6
     export COSMOSDB_RU=20000
-    export SIMULATOR_INSTANCES=1 
+    export SIMULATOR_INSTANCES=2 
+fi
+
+# 1000 messages/sec
+if [ "$TESTTYPE" == "1" ]; then
+    export EVENTHUB_PARTITIONS=4
+    export EVENTHUB_CAPACITY=4
+    export PROC_JOB_NAME=streamingjob
+    export PROC_STREAMING_UNITS=6 # must be 1, 3, 6 or a multiple or 6
+    export COSMOSDB_RU=20000
+    export SIMULATOR_INSTANCES=3 
 fi
 
 # last checks and variables setup

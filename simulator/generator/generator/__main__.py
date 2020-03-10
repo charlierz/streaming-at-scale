@@ -9,9 +9,12 @@ import pyspark.sql.functions as F
 from pyspark.sql.types import StringType
 
 executors = int(os.environ.get('EXECUTORS') or 1)
-rowsPerSecond = int(os.environ.get('EVENTS_PER_SECOND') or 1000)
-numberOfDevices = int(os.environ.get('NUMBER_OF_DEVICES') or 1000)
-complexDataCount = int(os.environ.get("COMPLEX_DATA_COUNT") or 23)
+# rowsPerSecond = int(os.environ.get('EVENTS_PER_SECOND') or 1000)
+# numberOfDevices = int(os.environ.get('NUMBER_OF_DEVICES') or 1000)
+rowsPerSecond = 500
+numberOfDevices = rowsPerSecond
+temperatureDataCount = int(os.environ.get("TEMPERATURE_DATA_COUNT") or 66)
+cellVoltageDataCount = int(os.environ.get("CELL_VOLTAGE_DATA_COUNT") or 80)
 duplicateEveryNEvents = int(os.environ.get("DUPLICATE_EVERY_N_EVENTS") or 0)
 
 outputFormat = os.environ.get('OUTPUT_FORMAT') or "kafka"
@@ -36,20 +39,54 @@ stream = (spark
 # Rate stream has columns "timestamp" and "value"
 
 stream = (stream
-  .withColumn("deviceId", F.concat(F.lit("contoso://device-id-"), F.expr("mod(value, %d)" % numberOfDevices)))
-  .withColumn("deviceSequenceNumber", F.expr("value div %d" % numberOfDevices))
-  .withColumn("type", F.expr("CASE WHEN rand()<0.5 THEN 'TEMP' ELSE 'CO2' END"))
-  .withColumn("partitionKey", F.col("deviceId"))
-  .withColumn("eventId", generate_uuid())
+  .withColumn("dev", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
+  .withColumn("dsn", F.expr("value div %d" % numberOfDevices))
+  .withColumn("mod", F.array(
+    F.lit("REKAN"),
+    F.lit("MIMIE"),
+    F.lit("YUTON"),
+    F.lit("RETWI"),
+    F.lit("REZOE"),
+    F.lit("NILEA"),
+    F.lit("ORANG"),
+    F.lit("BYDE5"),
+    F.lit("BMWI3"),
+    F.lit("AUETR"),
+  ).getItem(
+    (F.rand()*10).cast("int")
+  ))
+  .withColumn("partitionKey", F.col("dev"))
+  .withColumn("eid", generate_uuid())
   # current_timestamp is later than rate stream timestamp, therefore more accurate to measure end-to-end latency
-  .withColumn("createdAt", F.current_timestamp())
-  .withColumn("value", F.rand() * 90 + 10)
+  .withColumn("ts", F.current_timestamp())
+  .withColumn("cnt", F.round(F.rand()*10000000, 0))
+  .withColumn("vol", F.round(F.rand()*400, 0))
+  .withColumn("cur", F.round(F.rand()*40-20, 2))
+  .withColumn("spe", F.round(F.rand()*200, 0))
+  .withColumn("mas", F.round(F.rand()*200, 0))
+  .withColumn("odo", F.round(F.rand()*500000, 0))
+  .withColumn("soc", F.round(F.rand()*100, 1))
+  .withColumn("map", F.round(F.rand()*100, 1))
+  .withColumn("cap", F.round(F.rand()*100, 0))
+  .withColumn("lat", F.round(F.rand()*100, 6))
+  .withColumn("lon", F.round(F.rand()*-100, 6))
+  .withColumn("acc", F.round(F.rand()*100, 0))
+  .withColumn("bra", F.round(F.rand()*100, 0))
+  .withColumn("miv", F.round(F.rand()*10, 2))
+  .withColumn("mit", F.round(F.rand()*50, 2))
+  .withColumn("mav", F.round(F.rand()*10, 2))
+  .withColumn("mat", F.round(F.rand()*50, 2))
+  .withColumn("sdf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+  .withColumn("sig", F.round(F.rand()*100, 0))
+  .withColumn("gps", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+  .withColumn("sat", F.round(F.rand()*20, 0))
+  .withColumn("blf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+  .withColumn("sta", F.expr("CASE WHEN rand()<0.5 THEN 'OFF' ELSE (CASE WHEN rand()<0.5 THEN 'ON' ELSE 'CHA' END) END"))
+  .withColumn("jou", F.current_timestamp())
   )
 
-for i in range(complexDataCount):
-  stream = stream.withColumn("moreData{}".format(i), F.rand() * 90 + 10)
-
-stream = stream.withColumn("complexData", F.struct([F.col("moreData{}".format(i)) for i in range(complexDataCount)]))
+stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(cellVoltageDataCount)]))
+stream = stream.withColumn("ct", F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(temperatureDataCount)]))
 
 if duplicateEveryNEvents > 0:
  stream = stream.withColumn("repeated", F.expr("CASE WHEN rand() < {} THEN array(1,2) ELSE array(1) END".format(1/duplicateEveryNEvents)))
@@ -61,7 +98,7 @@ else: #Kafka format
   bodyColumn = "value"
 
 query = (stream
-  .selectExpr("to_json(struct(eventId, type, deviceId, deviceSequenceNumber, createdAt, value, complexData)) AS %s" % bodyColumn, "partitionKey")
+  .selectExpr("to_json(struct(eid, dev, mod, dsn, ts, cv, ct, cnt, vol, cur, spe, mas, odo, soc, map, cap, lat, lon, acc, bra, miv, mit, mav, mat, sdf, sig, gps, sat, blf, sta, jou)) AS %s" % bodyColumn, "partitionKey")
   .writeStream
   .partitionBy("partitionKey")
   .format(outputFormat)

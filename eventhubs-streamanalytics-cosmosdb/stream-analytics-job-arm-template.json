@@ -38,11 +38,11 @@
         },
         "cosmosdbPartitionKey": {
             "type": "string",
-            "defaultValue": "deviceId"
+            "defaultValue": "dev"
         },
         "cosmosdbDocumentId": {
             "type": "string",
-            "defaultValue": "eventId"
+            "defaultValue": "eid"
         }
     },
     "resources": [
@@ -90,7 +90,7 @@
                     "name": "ProcessSampleData",
                     "properties": {
                         "streamingUnits": "[int(parameters('streamingUnits'))]",
-                        "query": "select deviceId, deviceSequenceNumber, type, complexData, value, eventId, PartitionId, createdAt, EventEnqueuedUtcTime AS enqueuedAt, EventProcessedUtcTime AS processedAt, UDF.GetCurrentDateTime('') AS processedAt2 from inputEventHub partition by PartitionId"
+                        "query": "select dev, eid, mod, dsn, ts, cnt, vol, cur, spe, mas, odo, soc, map, cap, lat, lon, acc, bra, miv, mit, mav, mat, sdf, sig, gps, sat, blf, sta, jou, PartitionId, EventEnqueuedUtcTime AS eat, EventProcessedUtcTime AS pat, UDF.GetCurrentDateTime('') AS pat2 from inputEventHub partition by PartitionId"
                     }
                 },
                 "functions": [{
