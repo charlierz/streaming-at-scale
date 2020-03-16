@@ -27,20 +27,44 @@ import java.time.Instant
 import java.sql.Timestamp
 
 val schema = StructType(
-  StructField("eventId", StringType, false) ::
-  StructField("complexData", StructType((0 to 22).map(i => StructField(s"moreData$i", DoubleType, false)))) ::
-  StructField("value", StringType, false) ::
-  StructField("type", StringType, false) ::
-  StructField("deviceId", StringType, false) ::
-  StructField("deviceSequenceNumber", LongType, false) ::
-  StructField("createdAt", TimestampType, false) :: Nil)
+  StructField("eid", StringType, false) ::
+  StructField("cnt", LongType, false) ::
+  StructField("mod", StringType, false) ::
+  StructField("vol", IntegerType, false) ::
+  StructField("cur", DoubleType, false) ::
+  StructField("spe", IntegerType, false) ::
+  StructField("mas", IntegerType, false) ::
+  StructField("odo", IntegerType, false) ::
+  StructField("soc", DoubleType, false) ::
+  StructField("map", DoubleType, false) ::
+  StructField("cap", IntegerType, false) ::
+  StructField("lat", DoubleType, false) ::
+  StructField("lon", DoubleType, false) ::
+  StructField("acc", IntegerType, false) ::
+  StructField("bra", IntegerType, false) ::
+  StructField("miv", DoubleType, false) ::
+  StructField("mit", DoubleType, false) ::
+  StructField("mav", DoubleType, false) ::
+  StructField("mat", DoubleType, false) ::
+  StructField("sdf", BooleanType, false) ::
+  StructField("sig", IntegerType, false) ::
+  StructField("gps", BooleanType, false) ::
+  StructField("sat", IntegerType, false) ::
+  StructField("blf", BooleanType, false) ::
+  StructField("sta", StringType, false) ::
+  StructField("jou", TimestampType, false) :: Nil
+  StructField("cv", ArrayType(DoubleType()), false) ::
+  StructField("ct", ArrayType(DoubleType()), false) ::
+  StructField("dev", StringType, false) ::
+  StructField("dsn", LongType, false) ::
+  StructField("ts", TimestampType, false) :: Nil)
 
 val streamData = eventhubs
   .select(from_json(decode($"body", "UTF-8"), schema).as("eventData"), $"*")
-  .select($"eventData.*", $"enqueuedTime".as("enqueuedAt"))
-  .withColumn("processedAt", lit(Timestamp.from(Instant.now)))
+  .select($"eventData.*", $"enqueuedTime".as("eat"))
+  .withColumn("pat", lit(Timestamp.from(Instant.now)))
   // Unique ID column for Upsert
-  .withColumn("id", 'eventId)
+  .withColumn("id", 'eid)
 
 // COMMAND ----------
 
