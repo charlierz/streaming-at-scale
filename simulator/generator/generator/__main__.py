@@ -11,10 +11,9 @@ from pyspark.sql.types import StringType
 executors = int(os.environ.get('EXECUTORS') or 1)
 # rowsPerSecond = int(os.environ.get('EVENTS_PER_SECOND') or 1000)
 # numberOfDevices = int(os.environ.get('NUMBER_OF_DEVICES') or 1000)
-rowsPerSecond = 200
+rowsPerSecond = 320
+vehicleModel = "INITIAL"
 numberOfDevices = rowsPerSecond
-temperatureDataCount = int(os.environ.get("TEMPERATURE_DATA_COUNT") or 66)
-cellVoltageDataCount = int(os.environ.get("CELL_VOLTAGE_DATA_COUNT") or 80)
 duplicateEveryNEvents = int(os.environ.get("DUPLICATE_EVERY_N_EVENTS") or 0)
 
 outputFormat = os.environ.get('OUTPUT_FORMAT') or "kafka"
@@ -38,67 +37,223 @@ stream = (spark
    )
 # Rate stream has columns "timestamp" and "value"
 
-stream = (stream
-  .withColumn("dev", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
-  .withColumn("dsn", F.expr("value div %d" % numberOfDevices))
-  .withColumn("mod", F.array(
-    F.lit("REKAN"),
-    F.lit("MIMIE"),
-    F.lit("YUTON"),
-    F.lit("RETWI"),
-    F.lit("REZOE"),
-    F.lit("NILEA"),
-    F.lit("ORANG"),
-    F.lit("BYDE5"),
-    F.lit("BMWI3"),
-    F.lit("AUETR"),
-  ).getItem(
-    (F.rand()*10).cast("int")
-  ))
-  .withColumn("partitionKey", F.col("dev"))
-  .withColumn("eid", generate_uuid())
-  # current_timestamp is later than rate stream timestamp, therefore more accurate to measure end-to-end latency
-  .withColumn("ts", F.current_timestamp())
-  .withColumn("cnt", F.round(F.rand()*10000000, 0))
-  .withColumn("vol", F.round(F.rand()*400, 0))
-  .withColumn("cur", F.round(F.rand()*40-20, 2))
-  .withColumn("spe", F.round(F.rand()*200, 0))
-  .withColumn("mas", F.round(F.rand()*200, 0))
-  .withColumn("odo", F.round(F.rand()*500000, 0))
-  .withColumn("soc", F.round(F.rand()*100, 1))
-  .withColumn("map", F.round(F.rand()*100, 1))
-  .withColumn("cap", F.round(F.rand()*100, 0))
-  .withColumn("lat", F.round(F.rand()*100, 6))
-  .withColumn("lon", F.round(F.rand()*-100, 6))
-  .withColumn("acc", F.round(F.rand()*100, 0))
-  .withColumn("bra", F.round(F.rand()*100, 0))
-  .withColumn("miv", F.round(F.rand()*10, 2))
-  .withColumn("mit", F.round(F.rand()*50, 2))
-  .withColumn("mav", F.round(F.rand()*10, 2))
-  .withColumn("mat", F.round(F.rand()*50, 2))
-  .withColumn("sdf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
-  .withColumn("sig", F.round(F.rand()*100, 0))
-  .withColumn("gps", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
-  .withColumn("sat", F.round(F.rand()*20, 0))
-  .withColumn("blf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
-  .withColumn("sta", F.expr("CASE WHEN rand()<0.5 THEN 'OFF' ELSE (CASE WHEN rand()<0.5 THEN 'ON' ELSE 'CHA' END) END"))
-  .withColumn("jou", F.current_timestamp())
-  )
-
-stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(cellVoltageDataCount)]))
-stream = stream.withColumn("ct", F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(temperatureDataCount)]))
-
-if duplicateEveryNEvents > 0:
- stream = stream.withColumn("repeated", F.expr("CASE WHEN rand() < {} THEN array(1,2) ELSE array(1) END".format(1/duplicateEveryNEvents)))
- stream = stream.withColumn("repeated", F.explode("repeated"))
-
 if outputFormat == "eventhubs":
   bodyColumn = "body"
 else: #Kafka format
   bodyColumn = "value"
 
+if vehicleModel == "INITIAL":
+  stream = (stream
+    .withColumn("dev", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
+    .withColumn("dsn", F.expr("value div %d" % numberOfDevices))
+    .withColumn("mod", F.array(
+      F.lit("REKAN"),
+      F.lit("MIMIE"),
+      F.lit("YUTON"),
+      F.lit("RETWI"),
+      F.lit("REZOE"),
+      F.lit("NILEA"),
+      F.lit("ORANG"),
+      F.lit("BYDE5"),
+      F.lit("BMWI3"),
+      F.lit("AUETR"),
+    ).getItem(
+      (F.rand()*10).cast("int")
+    ))
+    .withColumn("partitionKey", F.col("dev"))
+    .withColumn("eid", generate_uuid())
+    # current_timestamp is later than rate stream timestamp, therefore more accurate to measure end-to-end latency
+    .withColumn("ts", F.current_timestamp())
+    .withColumn("cnt", F.round(F.rand()*10000000, 0))
+    .withColumn("vol", F.round(F.rand()*400, 0))
+    .withColumn("cur", F.round(F.rand()*40-20, 2))
+    .withColumn("spe", F.round(F.rand()*200, 0))
+    .withColumn("mas", F.round(F.rand()*200, 0))
+    .withColumn("odo", F.round(F.rand()*500000, 0))
+    .withColumn("soc", F.round(F.rand()*100, 1))
+    .withColumn("map", F.round(F.rand()*100, 1))
+    .withColumn("cap", F.round(F.rand()*100, 0))
+    .withColumn("lat", F.round(F.rand()*100, 6))
+    .withColumn("lon", F.round(F.rand()*-100, 6))
+    .withColumn("acc", F.round(F.rand()*100, 0))
+    .withColumn("bra", F.round(F.rand()*100, 0))
+    .withColumn("miv", F.round(F.rand()*10, 2))
+    .withColumn("mit", F.round(F.rand()*50, 2))
+    .withColumn("mav", F.round(F.rand()*10, 2))
+    .withColumn("mat", F.round(F.rand()*50, 2))
+    .withColumn("sdf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+    .withColumn("sig", F.round(F.rand()*100, 0))
+    .withColumn("gps", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+    .withColumn("sat", F.round(F.rand()*20, 0))
+    .withColumn("blf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+    .withColumn("sta", F.expr("CASE WHEN rand()<0.5 THEN 'OFF' ELSE (CASE WHEN rand()<0.5 THEN 'ON' ELSE 'CHA' END) END"))
+    .withColumn("jou", F.current_timestamp())
+    )
+
+  # stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(cellVoltageDataCount)]))
+  # stream = stream.withColumn("ct", F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(temperatureDataCount)]))
+
+  expression = "to_json(struct(eid, dev, mod, dsn, ts, cnt, vol, cur, spe, mas, odo, soc, map, cap, lat, lon, acc, bra, miv, mit, mav, mat, sdf, sig, gps, sat, blf, sta, jou)) AS %s" % bodyColumn
+
+
+elif vehicleModel == 'ORANS01':
+  stream = (stream
+    .withColumn("eid", generate_uuid())
+    .withColumn("typ", 0)
+    .withColumn("lic", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
+    .withColumn("dev", F.round(F.rand()*10000, 0))
+    .withColumn("cid", F.round(F.rand()*1000, 0))
+    .withColumn("mod", "ORANS01")
+    .withColumn("partitionKey", F.col("dev"))
+    .withColumn("ts", F.current_timestamp())
+    .withColumn("vol", F.round(F.rand()*400, 2))
+    .withColumn("cur", F.round(F.rand()*200-100, 2))
+    .withColumn("spe", F.round(F.rand()*200, 0))
+    .withColumn("acc", F.round(F.rand()*100, 1))
+    # .withColumn("bra", F.round(F.rand()*100, 1))
+    .withColumn("soc", F.round(F.rand()*100, 1))
+    .withColumn("odo", F.round(F.rand()*500000, 0))
+    .withColumn("lat", F.round(F.rand()*100, 6))
+    .withColumn("lon", F.round(F.rand()*-100, 6))
+    .withColumn("sta", F.expr("CASE WHEN rand()<0.5 THEN 'OFF' ELSE (CASE WHEN rand()<0.5 THEN 'ON' ELSE 'CHA' END) END"))
+    .withColumn("sdf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+    .withColumn("sig", F.round(F.rand()*100, 0))
+    .withColumn("miv", F.round(F.rand()*10, 2))
+    .withColumn("mav", F.round(F.rand()*10, 2))
+    .withColumn("av", F.round(F.rand()*10, 2))
+    .withColumn("mit", F.round(F.rand()*50, 2))
+    .withColumn("mat", F.round(F.rand()*50, 2))
+    .withColumn("at", F.round(F.rand()*50, 2))
+    # Oransh fields
+    .withColumn("ds", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+    )
+
+  if F.rand() < (1/60):
+    stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(23)]))
+    stream = stream.withColumn("ct", F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(7)]))
+    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at, ds, cv, ct)) AS %s" % bodyColumn
+
+  else:
+    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at, ds)) AS %s" % bodyColumn
+
+
+elif vehicleModel == 'MIMIE01':
+  stream = (stream
+    .withColumn("eid", generate_uuid())
+    .withColumn("typ", 0)
+    .withColumn("lic", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
+    .withColumn("dev", F.round(F.rand()*10000, 0))
+    .withColumn("cid", F.round(F.rand()*1000, 0))
+    .withColumn("mod", vehicleModel)
+    .withColumn("partitionKey", F.col("dev"))
+    .withColumn("ts", F.current_timestamp())
+    .withColumn("vol", F.round(F.rand()*400, 2))
+    .withColumn("cur", F.round(F.rand()*200-100, 2))
+    .withColumn("spe", F.round(F.rand()*200, 0))
+    .withColumn("acc", F.round(F.rand()*100, 1))
+    .withColumn("bra", F.round(F.rand()*100, 1))
+    .withColumn("soc", F.round(F.rand()*100, 1))
+    .withColumn("odo", F.round(F.rand()*500000, 0))
+    .withColumn("lat", F.round(F.rand()*100, 6))
+    .withColumn("lon", F.round(F.rand()*-100, 6))
+    .withColumn("sta", F.expr("CASE WHEN rand()<0.5 THEN 'OFF' ELSE (CASE WHEN rand()<0.5 THEN 'ON' ELSE 'CHA' END) END"))
+    .withColumn("sdf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+    .withColumn("sig", F.round(F.rand()*100, 0))
+    .withColumn("miv", F.round(F.rand()*10, 2))
+    .withColumn("mav", F.round(F.rand()*10, 2))
+    .withColumn("av", F.round(F.rand()*10, 2))
+    .withColumn("mit", F.round(F.rand()*50, 2))
+    .withColumn("mat", F.round(F.rand()*50, 2))
+    .withColumn("at", F.round(F.rand()*50, 2))
+    )
+
+  if F.rand() < (1/60):
+    stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(86)]))
+    stream = stream.withColumn("ct", F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(66)]))
+    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at, cv, ct)) AS %s" % bodyColumn
+
+  else:
+    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at)) AS %s" % bodyColumn
+
+
+elif vehicleModel == 'REKAN01':
+  stream = (stream
+    .withColumn("eid", generate_uuid())
+    .withColumn("typ", 0)
+    .withColumn("lic", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
+    .withColumn("dev", F.round(F.rand()*10000, 0))
+    .withColumn("cid", F.round(F.rand()*1000, 0))
+    .withColumn("mod", vehicleModel)
+    .withColumn("partitionKey", F.col("dev"))
+    .withColumn("ts", F.current_timestamp())
+    .withColumn("vol", F.round(F.rand()*400, 2))
+    .withColumn("cur", F.round(F.rand()*200-100, 2))
+    .withColumn("spe", F.round(F.rand()*200, 0))
+    .withColumn("acc", F.round(F.rand()*100, 1))
+    .withColumn("bra", F.round(F.rand()*100, 1))
+    .withColumn("soc", F.round(F.rand()*100, 1))
+    .withColumn("odo", F.round(F.rand()*500000, 0))
+    .withColumn("lat", F.round(F.rand()*100, 6))
+    .withColumn("lon", F.round(F.rand()*-100, 6))
+    .withColumn("sta", F.expr("CASE WHEN rand()<0.5 THEN 'OFF' ELSE (CASE WHEN rand()<0.5 THEN 'ON' ELSE 'CHA' END) END"))
+    .withColumn("sdf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+    .withColumn("sig", F.round(F.rand()*100, 0))
+    .withColumn("miv", F.round(F.rand()*10, 2))
+    .withColumn("mav", F.round(F.rand()*10, 2))
+    .withColumn("av", F.round(F.rand()*10, 2))
+    # Kangoo
+    .withColumn("ip", F.round(F.rand()*50, 2))
+    )
+
+  if F.rand() < (1/60):
+    stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(96)]))
+    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, ip, cv, ct)) AS %s" % bodyColumn
+
+  else:
+    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, ip)) AS %s" % bodyColumn
+
+
+elif vehicleModel == 'YUTON01':
+  stream = (stream
+    .withColumn("eid", generate_uuid())
+    .withColumn("typ", 0)
+    .withColumn("lic", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
+    .withColumn("dev", F.round(F.rand()*10000, 0))
+    .withColumn("cid", F.round(F.rand()*1000, 0))
+    .withColumn("mod", vehicleModel)
+    .withColumn("partitionKey", F.col("dev"))
+    .withColumn("ts", F.current_timestamp())
+    .withColumn("vol", F.round(F.rand()*400, 2))
+    .withColumn("cur", F.round(F.rand()*200-100, 2))
+    .withColumn("spe", F.round(F.rand()*200, 0))
+    .withColumn("acc", F.round(F.rand()*100, 1))
+    .withColumn("bra", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 100 END")) # Yutong
+    .withColumn("soc", F.round(F.rand()*100, 1))
+    .withColumn("odo", F.round(F.rand()*500000, 0))
+    .withColumn("lat", F.round(F.rand()*100, 6))
+    .withColumn("lon", F.round(F.rand()*-100, 6))
+    .withColumn("sta", F.expr("CASE WHEN rand()<0.5 THEN 'OFF' ELSE (CASE WHEN rand()<0.5 THEN 'ON' ELSE 'CHA' END) END"))
+    .withColumn("sdf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+    .withColumn("sig", F.round(F.rand()*100, 0))
+    .withColumn("miv", F.round(F.rand()*10, 2))
+    .withColumn("mav", F.round(F.rand()*10, 2))
+    .withColumn("mit", F.round(F.rand()*50, 2))
+    .withColumn("mat", F.round(F.rand()*50, 2))
+    # Yutong
+    .withColumn("ivi", F.round(F.rand()*200, 0))
+    .withColumn("avi", F.round(F.rand()*200, 0))
+    .withColumn("iti", F.round(F.rand()*200, 0))
+    .withColumn("ati", F.round(F.rand()*200, 0))
+    )
+    
+  expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, mit, mat, ivi, avi, iti, ati)) AS %s" % bodyColumn
+
+if duplicateEveryNEvents > 0:
+  stream = stream.withColumn("repeated", F.expr("CASE WHEN rand() < {} THEN array(1,2) ELSE array(1) END".format(1/duplicateEveryNEvents)))
+  stream = stream.withColumn("repeated", F.explode("repeated"))
+
 query = (stream
-  .selectExpr("to_json(struct(eid, dev, mod, dsn, ts, cv, ct, cnt, vol, cur, spe, mas, odo, soc, map, cap, lat, lon, acc, bra, miv, mit, mav, mat, sdf, sig, gps, sat, blf, sta, jou)) AS %s" % bodyColumn, "partitionKey")
+  .selectExpr(expression, "partitionKey")
   .writeStream
   .partitionBy("partitionKey")
   .format(outputFormat)
