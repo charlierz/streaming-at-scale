@@ -75,7 +75,7 @@ if [ "$TESTTYPE" == "1" ]; then
     export PROC_FUNCTION_WORKERS=1
     export POSTGRESQL_SKU=GP_Gen5_2
     export POSTGRESQL_STORAGE_SIZE=5120
-    export SIMULATOR_INSTANCES=2
+    export SIMULATOR_INSTANCES=1
 fi
 
 # last checks and variables setup

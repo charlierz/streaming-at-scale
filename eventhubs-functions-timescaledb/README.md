@@ -42,7 +42,7 @@ The following tools/languages are also needed:
   - Install: `sudo apt install jq`
 - [Zip](https://askubuntu.com/questions/660846/how-to-zip-and-unzip-a-directory-and-its-files-in-linux)
   - Install : `sudo apt install zip`
-- [Dotnet Core](https://dotnet.microsoft.com/download/linux-package-manager/ubuntu18-04/sdk-current)
+  -Postgresql : `sudo apt install postgresql postgresql-contrib`
 
 ## Setup Solution
 

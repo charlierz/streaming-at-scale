@@ -3,15 +3,17 @@ import time
 import datetime
 import uuid
 import json
+import random
 
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
-from pyspark.sql.types import StringType
+from pyspark.sql.types import StringType, ArrayType, FloatType, StructType
 
 executors = int(os.environ.get('EXECUTORS') or 1)
 # rowsPerSecond = int(os.environ.get('EVENTS_PER_SECOND') or 1000)
 # numberOfDevices = int(os.environ.get('NUMBER_OF_DEVICES') or 1000)
-rowsPerSecond = 320
+rowsPerSecond =700
+# vehicleModel = "INITIAL"
 vehicleModel = "INITIAL"
 numberOfDevices = rowsPerSecond
 duplicateEveryNEvents = int(os.environ.get("DUPLICATE_EVERY_N_EVENTS") or 0)
@@ -21,6 +23,22 @@ outputOptions = json.loads(os.environ.get('OUTPUT_OPTIONS') or "{}")
 secureOutputOptions = json.loads(os.environ.get('SECURE_OUTPUT_OPTIONS') or "{}")
 
 generate_uuid = F.udf(lambda : str(uuid.uuid4()), StringType())
+
+# def cell_list(num_cv, num_ct, chance):
+#   if random.random() < chance:
+#     a = {
+#       "cv": [round(random.random()*10, 2) for _ in range(num_cv)],
+#       "ct": [round(random.random()*50, 2) for _ in range(num_ct)],
+#     }
+#   else:
+#     a = {
+#       "cv": [],
+#       "ct": [],
+#     }
+#   return a
+    
+
+# cell_list_udf = F.udf(lambda : cell_list(num_cv, num_ct, chance), StructType(ArrayType(FloatType())))
 
 spark = (SparkSession
   .builder
@@ -96,14 +114,53 @@ if vehicleModel == "INITIAL":
   expression = "to_json(struct(eid, dev, mod, dsn, ts, cnt, vol, cur, spe, mas, odo, soc, map, cap, lat, lon, acc, bra, miv, mit, mav, mat, sdf, sig, gps, sat, blf, sta, jou)) AS %s" % bodyColumn
 
 
+elif vehicleModel == 'ORANS01U':
+  stream = (stream
+    .withColumn("eid", generate_uuid())
+    .withColumn("typ", F.lit(0))
+    .withColumn("lic", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
+    .withColumn("dev", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
+    .withColumn("cid", F.round(F.rand()*1000, 0))
+    .withColumn("mod", F.lit("ORANS01"))
+    .withColumn("partitionKey", F.col("dev"))
+    .withColumn("ts", F.current_timestamp())
+    .withColumn("vol", F.round(F.rand()*400, 2))
+    .withColumn("cur", F.round(F.rand()*200-100, 2))
+    .withColumn("spe", F.round(F.rand()*200, 0))
+    # .withColumn("acc", F.round(F.rand()*100, 1))
+    # .withColumn("bra", F.round(F.rand()*100, 1))
+    .withColumn("soc", F.round(F.rand()*100, 1))
+    .withColumn("odo", F.round(F.rand()*500000, 0))
+    .withColumn("lat", F.round(F.rand()*100, 6))
+    .withColumn("lon", F.round(F.rand()*-100, 6))
+    .withColumn("sta", F.expr("CASE WHEN rand()<0.5 THEN 'OFF' ELSE (CASE WHEN rand()<0.5 THEN 'ON' ELSE 'CHA' END) END"))
+    # .withColumn("sdf", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+    # .withColumn("sig", F.round(F.rand()*100, 0))
+    # .withColumn("miv", F.round(F.rand()*10, 2))
+    # .withColumn("mav", F.round(F.rand()*10, 2))
+    # .withColumn("av", F.round(F.rand()*10, 2))
+    # .withColumn("mit", F.round(F.rand()*50, 2))
+    # .withColumn("mat", F.round(F.rand()*50, 2))
+    # .withColumn("at", F.round(F.rand()*50, 2))
+    # Oransh fields
+    .withColumn("ds", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
+    )
+
+  # stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(23)]))
+  # stream = stream.withColumn("ct", F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(7)]))
+  # stream = stream.withColumn("a", F.struct([F.col("cv"), F.col("ct")]))
+
+  expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, soc, odo, lat, lon, sta, ds)) AS %s" % bodyColumn
+
+
 elif vehicleModel == 'ORANS01':
   stream = (stream
     .withColumn("eid", generate_uuid())
-    .withColumn("typ", 0)
+    .withColumn("typ", F.lit(0))
     .withColumn("lic", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
-    .withColumn("dev", F.round(F.rand()*10000, 0))
+    .withColumn("dev", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
     .withColumn("cid", F.round(F.rand()*1000, 0))
-    .withColumn("mod", "ORANS01")
+    .withColumn("mod", F.lit("ORANS01"))
     .withColumn("partitionKey", F.col("dev"))
     .withColumn("ts", F.current_timestamp())
     .withColumn("vol", F.round(F.rand()*400, 2))
@@ -128,23 +185,30 @@ elif vehicleModel == 'ORANS01':
     .withColumn("ds", F.expr("CASE WHEN rand()<0.5 THEN 0 ELSE 1 END"))
     )
 
-  if F.rand() < (1/60):
-    stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(23)]))
-    stream = stream.withColumn("ct", F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(7)]))
-    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at, ds, cv, ct)) AS %s" % bodyColumn
+  stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(23)]))
+  stream = stream.withColumn("ct", F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(7)]))
+  stream = stream.withColumn("a", F.struct([F.col("cv"), F.col("ct")]))
 
-  else:
-    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at, ds)) AS %s" % bodyColumn
+  # chargingChance = 1/9
+  # if random.random() < chargingChance:
+  # stream = stream.withColumn("a", F.expr("CASE WHEN rand()<{} THEN 0 ELSE 1 END".format(chargingChance)))
+
+  # stream = stream.withColumn("a", cell_list_udf(23, 7, chargingChance))
+
+  # stream = stream.withColumn("cv", F.expr("CASE WHEN rand()<{} THEN 'YES' ELSE 'NO' END".format(chargingChance)))
+  # stream = stream.withColumn("ct", F.expr("CASE WHEN rand()<{} THEN F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(7)]) ELSE F.lit(None).cast(StringType()) END".format(chargingChance)))
+
+  expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at, ds, a)) AS %s" % bodyColumn
 
 
 elif vehicleModel == 'MIMIE01':
   stream = (stream
     .withColumn("eid", generate_uuid())
-    .withColumn("typ", 0)
+    .withColumn("typ", F.lit(0))
     .withColumn("lic", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
-    .withColumn("dev", F.round(F.rand()*10000, 0))
+    .withColumn("dev", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
     .withColumn("cid", F.round(F.rand()*1000, 0))
-    .withColumn("mod", vehicleModel)
+    .withColumn("mod", F.lit("MIMIE01"))
     .withColumn("partitionKey", F.col("dev"))
     .withColumn("ts", F.current_timestamp())
     .withColumn("vol", F.round(F.rand()*400, 2))
@@ -167,23 +231,23 @@ elif vehicleModel == 'MIMIE01':
     .withColumn("at", F.round(F.rand()*50, 2))
     )
 
-  if F.rand() < (1/60):
-    stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(86)]))
-    stream = stream.withColumn("ct", F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(66)]))
-    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at, cv, ct)) AS %s" % bodyColumn
+  # stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(86)]))
+  # stream = stream.withColumn("ct", F.array([F.lit(F.round(F.rand()*50, 2)) for i in range(66)]))
+  # stream = stream.withColumn("a", F.struct([F.col("cv"), F.col("ct")]))
 
-  else:
-    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at)) AS %s" % bodyColumn
+  # expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at, a)) AS %s" % bodyColumn
+
+  expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, mit, mat, at)) AS %s" % bodyColumn
 
 
 elif vehicleModel == 'REKAN01':
   stream = (stream
     .withColumn("eid", generate_uuid())
-    .withColumn("typ", 0)
+    .withColumn("typ", F.lit(0))
     .withColumn("lic", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
-    .withColumn("dev", F.round(F.rand()*10000, 0))
+    .withColumn("dev", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
     .withColumn("cid", F.round(F.rand()*1000, 0))
-    .withColumn("mod", vehicleModel)
+    .withColumn("mod", F.lit("REKAN01"))
     .withColumn("partitionKey", F.col("dev"))
     .withColumn("ts", F.current_timestamp())
     .withColumn("vol", F.round(F.rand()*400, 2))
@@ -205,22 +269,19 @@ elif vehicleModel == 'REKAN01':
     .withColumn("ip", F.round(F.rand()*50, 2))
     )
 
-  if F.rand() < (1/60):
-    stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(96)]))
-    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, ip, cv, ct)) AS %s" % bodyColumn
-
-  else:
-    expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, ip)) AS %s" % bodyColumn
+  # stream = stream.withColumn("cv", F.array([F.lit(F.round(F.rand()*10, 2)) for i in range(96)]))
+  # expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, ip, cv)) AS %s" % bodyColumn
+  expression = "to_json(struct(eid, typ, lic, dev, cid, mod, ts, vol, cur, spe, acc, bra, soc, odo, lat, lon, sta, sdf, sig, miv, mav, av, ip)) AS %s" % bodyColumn
 
 
 elif vehicleModel == 'YUTON01':
   stream = (stream
     .withColumn("eid", generate_uuid())
-    .withColumn("typ", 0)
+    .withColumn("typ", F.lit(0))
     .withColumn("lic", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
-    .withColumn("dev", F.round(F.rand()*10000, 0))
+    .withColumn("dev", F.concat(F.lit("XYZ"), F.expr("mod(value, %d)" % numberOfDevices)))
     .withColumn("cid", F.round(F.rand()*1000, 0))
-    .withColumn("mod", vehicleModel)
+    .withColumn("mod", F.lit("YUTON01"))
     .withColumn("partitionKey", F.col("dev"))
     .withColumn("ts", F.current_timestamp())
     .withColumn("vol", F.round(F.rand()*400, 2))

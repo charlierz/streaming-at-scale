@@ -9,6 +9,8 @@ echo ". database: $POSTGRESQL_DATABASE_NAME"
 az extension add --name db-up \
   -o json >> log.txt
 
+echo "postgres up"
+
 az postgres up \
   --resource-group $RESOURCE_GROUP \
   --server-name $POSTGRESQL_SERVER_NAME \
